@@ -28,11 +28,19 @@ class:note_and_mark title
 
 ## Аналогии реального мира
 
-* `Конвеер`: детали двигаются по конвееру и на каждом этапе над ними производятся действия
-* `Разводной ключ`: ключ может открутить любую подходящую гайку. Ключ-функция один, гаек-данных много
+* `Конвеер`: детали двигаются по конвееру и на каждом этапе над ними производятся действия. Конвеер, как набор функций, неизменен, детали-данные меняются.
+```perl
+foreach my $component (@components) {
+        foreach my $tool (@tools) {
+            &$tool($component);
+        }
+}
+```
 * `Хлебопечка`: засыпаем муку, молоко и другие ингридиенты (входные данные), закрываем крышку (запускаем функцию), через некоторое время получаем на выходе хлеб.
 Муку можно засыпать вручную, а можно соединить вход хлебопечки с выходом мельнички для зерна, и т. д.
-
+```perl
+$bread=breadmaker($milk, $eggs, mill($grains));
+```
 ---
 
 # ООП
@@ -52,13 +60,19 @@ class:note_and_mark title
 
 ## Аналогии реального мира
 
-* `Саморазогревающиеся консервы`: дергаем за язычок, банка сама себя разогревает
-* `Гайка-барашек`: для откручивания такой гайки не нужен дополнительный инструмент (функция), у нее есть все необходимое для откручивания
-* `Телевизор`: может изменить свое состояние (выбранный канал, громкость) только при помощи пульта. Заведомо неверное состояние выставить с пульта невозможно.
-Если разобрать телевизор и подать импульс на нужный элемент схемы, канал тоже переключится, но разобрать телевизор нельзя.
-* `Турникет`: на вход турникет получает другой объект - чиповую карту. Через интерфейс карты (контактные площадки) происходит считывание с нее информации о наличии
-поездок и ее анализ. Если проход разрешен, турникет изменяет свое состояние - открывается. Одновременно карте дается команда уменьшить количество доступных поездок.
-А вот увеличивать количество поездок интерфейс карты не позволяет.
+* `Телевизор`: может изменить состояние (канал, громкость) только при помощи пульта. Заведомо неверное состояние выставить с пульта невозможно.
+Если разобрать телевизор и подать импульс на нужный элемент схемы, канал тоже переключится, но разбирать телевизор нельзя.
+```perl
+$tv->remote->set_channel(1);
+```
+* `Турникет`: на вход получает другой объект - карту. Если поездки на карте есть, турникет изменяет состояние - открывается, а чип карты
+получает команду списать поездку. Добавить поездку через интефейс карты невозможно.
+```perl
+# $gate->open_by_card($card);
+if ($card->has_passes) {
+        $card->spend_pass; $gate->open;
+}
+```
 
 ---
 
@@ -274,6 +288,37 @@ sub some_method {
 
 # Базовый синтаксис
 
+## Непрямой вызов методов
+
+```perl
+new Local::User(email => 'vasily@pupkin.ru');
+# Local::User->new(email => 'vasily@pupkin.ru');
+```
+
+```perl
+is_valid_password $user("123");
+# $user->is_valid_password("123");
+```
+
+---
+
+# Базовый синтаксис
+
+## Непрямой вызов методов
+
+```perl
+use strict;
+use warnings;
+
+Syntax error!
+
+exit 0;
+```
+
+---
+
+# Базовый синтаксис
+
 ## Переделываем `Local::User` из предыдущей лекции
 
 ```perl
@@ -380,6 +425,7 @@ sub set_first_name {
 * **Class::XSAccessor**
 * Class::Accessor::Fast
 * Class::Accessor
+* ...
 
 ```perl
 package Local::User;
@@ -397,24 +443,16 @@ use Class::XSAccessor {
 
 # Базовый синтаксис
 
-## Наследование
+## Переделываем `Local::User` из предыдущей лекции
 
 ```perl
-package Local::Student;
-*BEGIN { our @ISA = ('Local::User'); }
-1;
-```
-
-```perl
-package Local::Teacher;
-*use base 'Local::User';
-1;
-```
-
-```perl
-package Local::Professor;
-*use parent 'Local::Teacher';
-1;
+sub name {
+  my $self = shift;
+  return join ' ',
+    grep { length $_ }
+*     map { my $m="${_}_name"; $self->$m }
+        qw/first middle last/;
+}
 ```
 
 ---
@@ -423,14 +461,441 @@ package Local::Professor;
 
 ## Наследование
 
+```perl
+package Local::Student;
+*BEGIN { our @ISA = ('Local::User'); }
+```
+
+```perl
+package Local::Teacher;
+*use base 'Local::User';
+```
+
+```perl
+package Local::Professor;
+*use parent 'Local::Teacher';
+```
+
+```perl
+say Local::Professor->isa("Local::Teacher");# 1
+say Local::Professor->isa("Local::User");   # 1
+say Local::Professor->isa("Local::Student");# undef
+```
 
 ---
 
----
+# Базовый синтаксис
+
+## Наследование: класс UNIVERSAL
+
+```perl
+# ???
+say Local::Professor->isa("UNIVERSAL");     # 1
+```
+
+```perl
+my $professor = Local::Professor->new;
+say $professor->isa("Local::Teacher");      # 1
+
+say UNIVERSAL::isa({}, "Local::User");      # undef
+```
+
+```perl
+say ref Local::Professor->can("new");       # CODE
+say $professor->can("scream");              # undef
+```
+
+```perl
+say Local::User->VERSION;                   # 1.4
+```
 
 ---
 
+# Базовый синтаксис
+
+## Переделываем `Local::User` из предыдущей лекции
+
+```perl
+package Local::Teacher;
+use strict;
+use warnings;
+use base 'Local::User';
+
+sub welcome_string {
+  my $self = shift;
+  return
+  (
+    $self->gender eq 'm' ?
+    "Уважаемый " : "Уважаемая "
+  ) . "преподаватель " . $self->name . "!";
+}
+```
+
 ---
+
+# Базовый синтаксис
+
+## Переделываем `Local::User` из предыдущей лекции
+
+```perl
+package Local::Teacher;
+use strict;
+use warnings;
+use base 'Local::User';
+
+sub welcome_string {
+  my $self = shift;
+  my $str = $self->SUPER::welcome_string;
+  $str =~ s/ / преподаватель /;
+  return $str;
+}
+```
+
+---
+
+# Множественное наследование
+
+```perl
+package Local::Resident;
+use Class::XSAccessor {
+  accessors => [qw/
+    name snils inn
+    passport_id passport_emission passport_date
+  /],
+};
+```
+
+---
+
+# Множественное наследование
+
+```perl
+package Local::ResidentStudent;
+use parent qw/
+    Local::Student
+    Local::Resident
+/;
+```
+
+```perl
+$resident_user->name(); # ???
+# Local::Student->name or Local::Resident->name?
+```
+
+---
+
+# Множественное наследование
+
+## Method Resolution Order
+
+```
+       Animal
+         |
+        Pet   Barkable
+       /   \   /
+      Cat   Dog
+       \   /
+        Lynx
+```
+
+```perl
+Lynx->method();
+# Lynx->Cat->Pet->Animal->Dog->Barkable
+```
+
+```perl
+$self->Barkable::method(@params);
+
+$self->SUPER::method(@params);
+```
+
+---
+
+# Множественное наследование
+
+## Method Resolution Order
+
+```
+       Animal
+         |
+        Pet   Barkable
+       /   \   /
+      Cat   Dog
+       \   /
+        Lynx
+```
+
+```perl
+use mro 'c3';
+
+Lynx->method();
+# Lynx->Cat->Dog->Pet->Animal->Barkable
+```
+
+```perl
+$self->next::method(@params);
+```
+
+---
+
+# Композиция объектов
+
+```perl
+package Local::Resident;
+use Class::XSAccessor {
+    accessors => [qw/snils inn passport/],
+};
+
+package Local::Passport;
+use Class::XSAccessor {
+    accessors => [qw/id emission date/],
+};
+```
+
+```perl
+$passport = Local::Passport->get_by_id($id);
+$resident_user->passport($passport);
+print $resident_user->passport->emission;
+
+```
+
+---
+
+# Деструкторы
+
+```perl
+package Local::User;
+
+sub DESTROY {
+  my ($self) = @_;
+  print 'DESTROYED: ', $self->name;
+}
+```
+
+```perl
+{
+  my $user =
+    Local::User->get_by_email('vasily@pupkin.ru');
+  # ...
+}                      # DESTROYED: Василий Пупкин
+```
+
+---
+
+# Деструкторы — сложности
+
+* `die`
+* `local`
+* `AUTOLOAD`
+* `${^GLOBAL_PHASE} eq 'DESTRUCT'`
+
+```perl
+sub DESTROY {
+  my ($self) = @_;
+  $self->{handle}->close() if $self->{handle};
+}
+```
+
+---
+
+# Модуль `overload`
+
+```perl
+package Local::User;
+use overload '""' => 'to_string';
+sub to_string {
+    my ($self) = @_;
+    return $self->name.' <'.$self->email.'>';
+}
+```
+
+```perl
+print $user;   # Василий Пупкин <vasily@pupkin.ru>
+```
+
+---
+
+# Модуль `overload`
+
+```perl
+package Local::Vector;
+use overload '+' => 'add', '0+' => 'len';
+sub new {
+    my ($class, $x, $y) = @_;
+    bless { x=>$x, y=>$y }, $class;
+}
+sub add {
+    my ($vec1, $vec2) = @_;
+    __PACKAGE__->new(
+        $vec1->{x} + $vec2->{x},
+        $vec1->{y} + $vec2->{y},
+    );
+}
+sub len {
+    my ($self) = @_;
+    return sqrt($self->{x}**2 + $self->{y}**2);
+}
+```
+
+---
+
+# Модуль `overload`
+
+```perl
+$vec1 = Local::Vector->new(1, 2);
+$vec2 = Local::Vector->new(3, 1);
+print $vec1+$vec2;    # 5
+
+```
+
+---
+
+# Примеры
+
+## tied objects
+
+```perl
+$hash{x} = 'vasily@pupkin.ru';
+
+print $hash{x};
+# Василий Пупкин <vasily@pupkin.ru>
+
+print ref $hash{x};
+# Local::User
+
+# WTF???
+```
+
+---
+
+# Примеры
+
+## tied objects
+
+```perl
+package Local::UserHash;
+
+use Tie::Hash;
+use base 'Tie::StdHash';
+
+use Local::User;
+
+sub STORE {
+  my ($self, $key, $value) = @_;
+  $self->{$key} = 
+    Local::User->get_by_email($value);
+}
+```
+
+---
+
+# Примеры
+
+## tied objects
+
+```perl
+my %hash;
+tie %hash, 'Local::UserHash';
+
+$hash{x} = 'vasily@pupkin.ru';
+
+print $hash{x};
+# Василий Пупкин <vasily@pupkin.ru>
+```
+
+---
+
+# Примеры
+
+## Пакеты
+
+```perl
+use Some::Package qw(a b c);
+# Some::Package->import(qw(a b c));
+
+no Some::Package;
+# Some::Package->unimport;
+
+use Some::Package 10.01
+# Some::Package->VERSION(10.01);
+```
+
+---
+
+# Примеры
+
+## JSON::XS
+
+```perl
+use JSON::XS;
+
+JSON::XS->new->utf8->decode('...');
+
+decode_json '...';
+```
+
+---
+
+# Примеры
+
+## Исключения (exceptions)
+
+```perl
+eval {
+  die Local::Exception->new();
+  1;
+} or do {
+  my $error = $@;
+
+  if (
+    blessed($error) &&
+    $error->isa('Local::Exception')
+  ) {
+     # ...
+  } else {
+    die $error;
+  }
+};
+```
+
+---
+
+# Примеры
+
+## Исключения (exceptions)
+
+```perl
+use Try::Tiny;
+try {
+  die 'foo';
+} catch {
+  warn "caught error: $_"; # not $@
+};
+```
+
+```perl
+use Error qw(:try);
+try {
+    throw Error::Simple 'Oops!';
+}
+catch Error::Simple with { say 'Simple' }
+except                   { say 'Except' }
+otherwise                { say 'Otherwise' }
+finally                  { say 'Finally' };
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ---
 
