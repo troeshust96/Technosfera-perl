@@ -66,6 +66,11 @@ sub is_number {
     return $expr =~ /[0-9]/g;
 }
 
+sub is_operation {
+    my $expr = shift;
+    return !is_number($expr);
+}
+
 sub normalize {
     my $expr = shift;
     my $val = 0 + $expr;
@@ -88,6 +93,13 @@ sub check_CBS {
 	    die "Wrong bracket sequence";
 	}
     }
+}
+
+
+
+sub check_sequence {
+    my ($prev, $cur) = @_;
+    
 }
 
 sub tokenize
