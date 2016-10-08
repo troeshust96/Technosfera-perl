@@ -41,12 +41,6 @@ sub del_empty_elements {
         }
     }
 }
- 
-sub unary_op_replace {
-	my $expr = @_;
-	$expr =~ s/(?<=[*^\/(+-])\+/U+/g; # Unary plus -> U+
-	$expr =~ s/(?<=[*^\/(+-])\-/U-/g; # Unary minus -> U-
-}
 
 sub delete_spaces {
     my $str = shift;
@@ -56,8 +50,8 @@ sub delete_spaces {
 
 sub unary_transform {
     my $expr = shift;
-    $expr =~ s/\+/U+/;
-    $expr =~ s/-/U-/;
+    $expr =~ s/(?<=[-(+*\/^]|^)-/U-/g;
+    $expr =~ s/(?<=[-(+*\/^]|^)\+/U+/g;
 }
 
 sub split_expr {
@@ -71,9 +65,26 @@ sub is_number {
     return $expr =~ /[0-9]/g;
 }
 
+sub normalize {
+    my $expr = shift;
+    my $val = 0 + $expr;
+    return "$val";
+}
+
+#correct bracket sequence
+sub check_CBS {
+    my $cap = 0;
+    my $str = shift;
+    my $len = length($str);
+    for my $i ( 0 .. $len ) {
+       if (  
+    }
+}
+
 sub tokenize
 {
     chomp(my $expr = shift);
+    check_CBS($expr); # correct bracket sequence
     $expr = delete_spaces($expr);
     $expr = unary_transform($expr);
     my @res = split_expr($expr);
@@ -86,10 +97,14 @@ sub tokenize
     my $i = 0;
  
     for my $i ( 0 .. $#res ) {
-        if ( is_number($res[$i] ) {
-	    asd;
+        $cur_element = $res[$i];
+	$prev_element = ( $i ) ? ( $i ) : ( "(" );
+	if ( is_number($cur_element) ) {
+	    $cur_element = unary_transform($cur_element);
+	    check_number($cur_element);
+	    $cur_element = normalize($cur_element);
 	}
-	
+	check_sequence($prev_element, $cur_element);	
 	
 	if($res[$i] eq "" or $res[$i] =~ /\s+/)
         {
