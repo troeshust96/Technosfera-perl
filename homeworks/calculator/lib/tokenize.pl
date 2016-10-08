@@ -52,6 +52,7 @@ sub unary_transform {
     my $expr = shift;
     $expr =~ s/(?<=[-(+*\/^]|^)-/U-/g;
     $expr =~ s/(?<=[-(+*\/^]|^)\+/U+/g;
+    return $expr;
 }
 
 sub split_expr {
@@ -75,97 +76,36 @@ sub normalize {
 sub check_CBS {
     my $cap = 0;
     my $str = shift;
-    my $len = length($str);
-    for my $i ( 0 .. $len ) {
-       if (  
+    my @expr = split("", $str);
+    for my $i ( 0 .. $#expr ) {
+    	if ( $expr[$i] eq "(" ) {
+	    ++$cap;
+	}
+	if ( $expr[$i] eq ")" ) {
+	    --$cap;
+	}
+	if ( $cap < 0 ) {
+	    die "Wrong bracket sequence";
+	}
     }
 }
 
 sub tokenize
 {
     chomp(my $expr = shift);
-    check_CBS($expr); # correct bracket sequence
     $expr = delete_spaces($expr);
+    check_CBS($expr); # correct bracket sequence
     $expr = unary_transform($expr);
     my @res = split_expr($expr);
- 
- 
-    my @operation = ('+', '-', '*', '/', '^');
-    my @unar_op = ('U+', 'U-');
-    my @symbols = (@operation, @unar_op, '(', ')');
-    my $last = '(';
-    my $i = 0;
- 
+
     for my $i ( 0 .. $#res ) {
         $cur_element = $res[$i];
 	$prev_element = ( $i ) ? ( $i ) : ( "(" );
 	if ( is_number($cur_element) ) {
-	    $cur_element = unary_transform($cur_element);
 	    check_number($cur_element);
 	    $cur_element = normalize($cur_element);
 	}
 	check_sequence($prev_element, $cur_element);	
-	
-	if($res[$i] eq "" or $res[$i] =~ /\s+/)
-        {
-            splice(@res, $i, 1);
-            next;
-        }
- 
- 
-        if ($res[$i] eq "+" and $last ~~ @symbols and (!($last eq ')')))
-        {
-            $res[$i] = 'U+';
-        }
-        if ($res[$i] eq "-" and $last ~~ @symbols and !($last eq ')'))
-        {
-            $res[$i] = 'U-';
-        }
-        if (!($res[$i] ~~ @symbols))
-        {
-            if($res[$i] =~ /[^e+0-9.-]/)
-            {
-                die "Err: $res[$i]";
-            }
-            if ($res[$i] =~ /.*e.*e.*/)
-            {
-                die "Err: $res[$i]"
-            }
-            if ($res[$i] =~ /.*\..*\..*/)
-            {
-                die "Err: $res[$i]"
-            }
-            my $p = 0 + $res[$i];
-            $res[$i] = "$p";
-        }
- 
-        if($res[$i] ~~ @operation)
-        {
-            if  ($last ~~ @unar_op
-            or  $last ~~ @operation or $last eq '('
-            or  $i == $#res)
-            {
-                die "Err";
-            }
-        }
-        if(!($res[$i] ~~ @symbols) and !($last ~~ @symbols))
-        {
-            die "Err";
-        }
- 
- 
-        if($res[$i] eq ')' and ($last ~~ @operation or $last ~~ @unar_op))
-        {
-            die "Err";
-        }
- 
-        if($res[$i] ~~ @unar_op and $i == $#res)
-        {
-            die "Err";
-        }
- 
-        $last = $res[$i];
-        $i++;
     }
     return \@res;
 }
