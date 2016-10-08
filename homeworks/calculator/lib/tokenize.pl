@@ -48,17 +48,36 @@ sub unary_op_replace {
 	$expr =~ s/(?<=[*^\/(+-])\-/U-/g; # Unary minus -> U-
 }
 
+sub delete_spaces {
+    my $str = shift;
+    $str =~ s/\s+//g;
+    return $str;
+}
+
+sub unary_transform {
+    my $expr = shift;
+    $expr =~ s/\+/U+/;
+    $expr =~ s/-/U-/;
+}
+
+sub split_expr {
+    my $expr = shift;
+    my @res = split m{((?<!e)[-+]|[*^/()])}, $expr;
+    return @res;
+}
+
+sub is_number {
+    my $expr = shift;
+    return $expr =~ /[0-9]/g;
+}
+
 sub tokenize
 {
     chomp(my $expr = shift);
-    $expr =~ s/\s+//g;
-    
-    unary_op_replace($expr);
-    
-    
-    my @res = split m{((?<!e)[-+]|[*^/()])}, $expr;
+    $expr = delete_spaces($expr);
+    $expr = unary_transform($expr);
+    my @res = split_expr($expr);
  
-	
  
     my @operation = ('+', '-', '*', '/', '^');
     my @unar_op = ('U+', 'U-');
@@ -66,9 +85,13 @@ sub tokenize
     my $last = '(';
     my $i = 0;
  
-    while ($i <= $#res)
-    {
-        if($res[$i] eq "" or $res[$i] =~ /\s+/)
+    for my $i ( 0 .. $#res ) {
+        if ( is_number($res[$i] ) {
+	    asd;
+	}
+	
+	
+	if($res[$i] eq "" or $res[$i] =~ /\s+/)
         {
             splice(@res, $i, 1);
             next;
