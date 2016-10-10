@@ -1,20 +1,7 @@
-=head1 DESCRIPTION
-Эта функция должна принять на вход арифметическое выражение,
-а на выходе дать ссылку на массив, состоящий из отдельных токенов.
-Токен - это отдельная логическая часть выражения: число, скобка или арифметическая операция
-В случае ошибки в выражении функция должна вызывать die с сообщением об ошибке
-Знаки '-' и '+' в первой позиции, или после другой арифметической операции стоит воспринимать
-как унарные и можно записывать как "U-" и "U+"
-Стоит заметить, что после унарного оператора нельзя использовать бинарные операторы
-Например последовательность 1 + - / 2 невалидна. Бинарный оператор / идёт после использования унарного "-"
-=cut
- 
 use 5.010;
 use strict;
 use warnings;
 use diagnostics;
- 
-use Data::Dumper;
  
 BEGIN
 {
@@ -26,18 +13,19 @@ BEGIN
 }
 no warnings 'experimental';
  
-tokenize(<>);
- 
 sub del_element {
-    my ($array, $idx) = @_;
-    splice(@$array, $idx, 1);
+    my ($aref, $idx) = @_;
+    splice(@$aref, $idx, 1);
 }
  
 sub del_empty_elements {
-    my $array = @_;
-    for my $i ( 0 .. $#@$array) {
-        if ( @$array[$i] eq "" ) {
-            del_element($array, $i);
+    my $aref = shift;
+    my $i = 0;
+    while ( $i <= $#$aref) {
+        if ( $aref->[$i] eq "" ) {
+            del_element($aref, $i);
+        } else {
+            ++$i;
         }
     }
 }
@@ -49,15 +37,16 @@ sub delete_spaces {
 }
 
 sub unary_transform {
-    my $expr = shift;
-    $expr =~ s/(?<=[-(+*\/^]|^)-/U-/g;
-    $expr =~ s/(?<=[-(+*\/^]|^)\+/U+/g;
-    return $expr;
+    my $expr = "(".shift;
+    $expr =~ s/(?<=[-(+*\/^])-/U-/g;
+    $expr =~ s/(?<=[-(+*\/^])\+/U+/g;
+    return substr($expr, 1, length($expr) - 1);
 }
 
 sub split_expr {
     my $expr = shift;
-    my @res = split m{((?<!e)[-+]|[*^/()])}, $expr;
+    my @res = split m{((?<![eU])[-+]|[*^/()]|U\+|U-)}, $expr; 
+    del_empty_elements(\@res);
     return @res;
 }
 
@@ -83,41 +72,75 @@ sub check_CBS {
     my $str = shift;
     my @expr = split("", $str);
     for my $i ( 0 .. $#expr ) {
-    	if ( $expr[$i] eq "(" ) {
-	    ++$cap;
-	}
-	if ( $expr[$i] eq ")" ) {
-	    --$cap;
-	}
-	if ( $cap < 0 ) {
-	    die "Wrong bracket sequence";
-	}
+        if ( $expr[$i] eq "(" ) {
+            ++$cap;
+        }
+        if ( $expr[$i] eq ")" ) {
+            --$cap;
+        }
+        if ( $cap < 0 ) {
+            die "Wrong bracket sequence";
+        }
     }
 }
 
-
-
-sub check_sequence {
-    my ($prev, $cur) = @_;
-    
+sub check_number {
+    my $expr = shift;
+    if ( $expr =~ /.*e.*e.*|.*\..*\..*/ ) {
+        die "Wrong number : $expr";
+    } 
 }
 
-sub tokenize
-{
+sub check_numbers_beside {
+    my $expr = shift;
+    my @tok = split m{((?<!e)[-+]|[*^/()]|\s+)}, $expr; 
+    my $last_is_number = 0;
+    for my $i ( @tok ) {
+        if ( is_number($i) && $last_is_number ) {
+                die "2 numbers in a row";
+        }
+        if ( $i =~ /\s/ ) {
+            next;
+        }
+        $last_is_number = is_number($i);
+    }
+}
+
+sub check_sequence {
+    my $expr = shift;
+    # UO-O | O-O | (-O
+    if ( $expr =~ /(?<=U\+|U-|.[-+*\/^(])[-+*\/^]/ ) {
+        my $len = $+[0] - $-[0];
+        die "Wrong sequence : ".substr($expr, $-[0], $len); 
+    }
+    # O-EOE | UO-EOE  
+    if ( $expr =~ /([-+*\/^]|U\+|U-)$/ ) {
+        my $len = $+[0] - $-[0];
+        die substr($expr, $-[0], $len)." at the end of expression"; 
+    }
+    # O-)
+    if ( $expr =~ /[-+*\/^]\)/ ) {
+        my $len = $+[0] - $-[0];
+        die "Wrong sequence : ".substr($expr, $-[0], $len);
+    }
+}
+
+sub tokenize($) {
     chomp(my $expr = shift);
+    check_numbers_beside($expr);
     $expr = delete_spaces($expr);
-    check_CBS($expr); # correct bracket sequence
     $expr = unary_transform($expr);
+    check_CBS($expr); # correct bracket sequence
+    check_sequence($expr);
     my @res = split_expr($expr);
 
     for my $i ( 0 .. $#res ) {
-        $cur_element = $res[$i];
-	$prev_element = ( $i ) ? ( $i ) : ( "(" );
-	if ( is_number($cur_element) ) {
-	    check_number($cur_element);
-	    $cur_element = normalize($cur_element);
-	}
-	check_sequence($prev_element, $cur_element);	
+        my $cur_element = $res[$i];
+        if ( is_number($cur_element) ) {
+            check_number($cur_element);
+            $cur_element = normalize($cur_element);
+        }
+        $res[$i] = $cur_element;
     }
     return \@res;
 }
