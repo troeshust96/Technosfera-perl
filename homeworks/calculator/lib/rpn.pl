@@ -70,4 +70,4 @@ sub rpn
     }
     return \@rpn;
 }
-1
+1;
