@@ -9,10 +9,10 @@ use warnings;
 use diagnostics;
 
 BEGIN{
-	if ($] < 5.018) {
-		package experimental;
-		use warnings::register;
-	}
+    if ($] < 5.018) {
+        package experimental;
+        use warnings::register;
+    }
 }
 
 no warnings 'experimental';
@@ -30,31 +30,31 @@ sub get_priority {
 }
 
 sub is_right_associative {
-	my $op = shift;
-	return $op =~ /U\+|U\-|\^/;
+    my $op = shift;
+    return $op =~ /U\+|U\-|\^/;
 }
 
 sub rpn 
 {
-	my $expr = shift;
-	my $source = tokenize($expr);
-	my @rpn;
-	my @stack;
-	
+    my $expr = shift;
+    my $source = tokenize($expr);
+    my @rpn;
+    my @stack;
+    
     for my $token ( @$source ) {
         given ( $token ) {
             when (/\d/) { push(@rpn, $token) ; }
             when (/U\+|U\-|[-+\/*^]/) {
                 my $op1 = $token;
                 while ( @stack ) {
-					my $op2 = $stack[-1]; 
+                    my $op2 = $stack[-1]; 
                     if ( (!is_right_associative($op1) && get_priority($op1) <= get_priority($op2)) ||
                          (is_right_associative($op1) && get_priority($op1) < get_priority($op2)) ) {
                         push(@rpn, pop(@stack));
                     } else {
                         last;
                     }
-				}
+                }
                 push(@stack, $op1);
             }
             when (/\(/) { push(@stack, $token) }
@@ -68,6 +68,6 @@ sub rpn
     while ( @stack ) {
         push(@rpn, pop(@stack));
     }
-	return \@rpn;
+    return \@rpn;
 }
-1;
+1
