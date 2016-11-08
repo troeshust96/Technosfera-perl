@@ -109,12 +109,12 @@ sub start_server {
     
 # Starting server
     my ($pkg, $port, %opts) = @_;
-	$max_worker         = $opts{max_worker} // die "max_worker required"; 
-	$max_forks_per_task = $opts{max_forks_per_task} // die "max_forks_per_task required";
+    $max_worker         = $opts{max_worker} // die "max_worker required"; 
+    $max_forks_per_task = $opts{max_forks_per_task} // die "max_forks_per_task required";
     $max_queue_task     = $opts{max_queue_task} // die "max_queue_task required"; 
     $max_receiver    = $opts{max_receiver} // die "max_receiver required"; 
 
-    my $host = "127.0.0.1";	
+    my $host = "127.0.0.1";    
     my $server = IO::Socket::IP->new(
         LocalPort => $port,
         LocalAddr => $host,
@@ -147,7 +147,7 @@ sub start_server {
             next; 
         }
     #child
-		if ( defined $child ) {
+        if ( defined $child ) {
             close $server;
             $client->send(TYPE_CONN_OK());
             my %request = get_request($client);
@@ -162,7 +162,7 @@ sub start_server {
 
 # If any worker done his task or task added
 sub punch_workers {
-	my $queue = shift;
+    my $queue = shift;
     
     if ( $#worker_pids + 1 == $max_worker ) { return } # No free workers :(
     

@@ -36,8 +36,8 @@ sub start {
     $SIG{CHLD} = "DEFAULT";
     my $self = shift;
     
-    $self->{in_file} = "/tmp/task".$self->{task_id}.".in";	
-    $self->{out_file} = "/tmp/task".$self->{task_id}.".out";	
+    $self->{in_file} = "/tmp/task".$self->{task_id}.".in";    
+    $self->{out_file} = "/tmp/task".$self->{task_id}.".out";    
     open my $fh_in, '<', $self->{in_file} or die $!;
     open my $fh_out, '>', $self->{out_file} or die $!;
     my @forks_list = ();

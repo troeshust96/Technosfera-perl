@@ -37,7 +37,7 @@ sub get_next_id {
 }
 
 sub init {
-    my $self = shift;    	
+    my $self = shift;        
    
     sysopen(my $fh, $self->queue_filename, O_RDWR|O_CREAT)
         or die "Can't open queue file: $!";
@@ -46,7 +46,7 @@ sub init {
 }
 
 sub my_open {
-	my $self = shift;
+    my $self = shift;
 
     open my $fh, '+<', $self->queue_filename or die $!;
     $self->{f_handle} = $fh;
@@ -61,8 +61,8 @@ sub my_open {
 }
 
 sub my_close {
-	my $self = shift;
-	my $tasks = shift;
+    my $self = shift;
+    my $tasks = shift;
 
     my $fh = $self->{f_handle};
     if ($self->changed) {
@@ -78,8 +78,8 @@ sub my_close {
 }
 
 sub to_done {
-	my $self = shift;
-	my $task_id = shift;
+    my $self = shift;
+    my $task_id = shift;
     
     my $tasks = $self->my_open();
     for my $i ( @$tasks ) {
@@ -92,9 +92,9 @@ sub to_done {
 }
 
 sub get_status {
-	my $self = shift;
-	my $id = shift;
-	
+    my $self = shift;
+    my $id = shift;
+    
     my $tasks = $self->my_open();
     for my $i ( @$tasks ) {
         if ( $i->{id} == $id ) {
@@ -122,8 +122,8 @@ sub get_time_unchanged {
 
 sub delete {
     my $self = shift;
-	my $id = shift;
-	
+    my $id = shift;
+    
     my $tasks = $self->my_open();
     @$tasks = grep { $_->{id} ne $id } @$tasks;
     $self->changed(1);
@@ -132,7 +132,7 @@ sub delete {
 
 sub get {
     my $self = shift;
-	
+    
     my $task_id = 0;
     my $tasks = $self->my_open();
     for my $i ( @$tasks ) {
@@ -149,7 +149,7 @@ sub get {
 }
 
 sub add {
-	my $self = shift;
+    my $self = shift;
     my $tasks = $self->my_open();
     
     if ( scalar(@$tasks) == $self->{max_task} ) {

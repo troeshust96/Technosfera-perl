@@ -2,9 +2,9 @@ package Extended::Subs;
 
 use Exporter 'import';
 our @EXPORT = qw(
-	try_lock try_write
+    try_lock try_write
     get_input_filename get_output_filename
-    write_task_input	
+    write_task_input    
 );
 
 use strict;
@@ -39,13 +39,13 @@ sub try_write {
 }
 
 sub get_input_filename {
-	my $task_id = shift;
-    return "/tmp/task$task_id.in";	
+    my $task_id = shift;
+    return "/tmp/task$task_id.in";    
 }
 
 sub get_output_filename {
-	my $task_id = shift;
-    return "/tmp/task$task_id.out";	
+    my $task_id = shift;
+    return "/tmp/task$task_id.out";    
 }
 
 # Print expressions from Client message to input file

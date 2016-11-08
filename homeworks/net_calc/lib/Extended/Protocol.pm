@@ -2,10 +2,10 @@ package Extended::Protocol;
 
 use Exporter 'import';
 our @EXPORT = qw(
-	try_send send_message
-	receive_header receive_message
+    try_send send_message
+    receive_header receive_message
     msg_to_str
-    pack_header pack_message unpack_header unpack_message	
+    pack_header pack_message unpack_header unpack_message    
 );
 
 use strict;
@@ -29,7 +29,7 @@ sub send_message {
     my $type = shift;
 
     if ( !defined $type ) { $type = 0 }
-	my $string_msg = msg_to_str($aref);
+    my $string_msg = msg_to_str($aref);
     my $p_header = pack_header($type, length($string_msg));
     my $p_msg = pack_message($string_msg);
     try_send($client, $p_header.$p_msg);
@@ -37,26 +37,26 @@ sub send_message {
 
 # Receive header from Client
 sub receive_header {
-	my $client = shift;
+    my $client = shift;
 
-	my $packed_header;
-	$client->recv($packed_header, HEADER_SIZE);
+    my $packed_header;
+    $client->recv($packed_header, HEADER_SIZE);
     if ( length($packed_header) == 0) { return }
     if ( length($packed_header) < HEADER_SIZE)  { die "broken header" }
-	return unpack_header($packed_header);
+    return unpack_header($packed_header);
 }
 
 # Receive message from Client
 sub receive_message {
-	my $client = shift;
-	my $len = shift;
+    my $client = shift;
+    my $len = shift;
 
-    my $packed_msg;	
+    my $packed_msg;    
     $client->recv($packed_msg, BUF_SIZE());
     chomp($packed_msg);
     my $message = unpack_message($packed_msg);
     if ( length($message) != $len ) { die "broken message" }
-	return $message;
+    return $message;
 }
 
 # (1, 2, 3, ...) -> #1#2#3...
