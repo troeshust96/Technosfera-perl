@@ -14,16 +14,16 @@ sub set_connect {
 	my $ip = shift;
 	my $port = shift;
     
-	my $sock = IO::Socket::IP->new(
+	my $server = IO::Socket::IP->new(
 		PeerPort => $port,
 		PeerAddr => $ip,
 		Proto    => 'tcp',
 		V6Only   => 1,
 	) or die "Cannot open client socket: $!";
    
-    my $code = <$sock>;
+    $server->recv(my $code, 1);
     if ( $code == TYPE_CONN_ERR() ) { die "Server denied the connection" }
-    return $sock;
+    return $server;
 }
 
 sub do_request { 

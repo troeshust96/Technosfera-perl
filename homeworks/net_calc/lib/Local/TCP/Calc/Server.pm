@@ -135,7 +135,7 @@ sub start_server {
         if ( !defined $client) { next }
         if ( $#rec_pids + 1 == $max_receiver ) {
             print "Reached limit of receivers".$/; 
-            print {$client} TYPE_CONN_ERR().$/;
+            $client->send(TYPE_CONN_ERR());
             close ( $client );
             next;
         }
@@ -149,7 +149,7 @@ sub start_server {
     #child
 		if ( defined $child ) {
             close $server;
-            $client->send(TYPE_CONN_OK().$/);
+            $client->send(TYPE_CONN_OK());
             my %request = get_request($client);
             if ( scalar(keys(%request)) == 0 ) { exit } # empty request
             my @ans = solve_request(\%request, $queue); 
