@@ -149,7 +149,7 @@ sub start_server {
     #child
 		if ( defined $child ) {
             close $server;
-            $client->send(TYPE_CONN_OK()."\n");
+            $client->send(TYPE_CONN_OK().$/);
             my %request = get_request($client);
             if ( scalar(keys(%request)) == 0 ) { exit } # empty request
             my @ans = solve_request(\%request, $queue); 

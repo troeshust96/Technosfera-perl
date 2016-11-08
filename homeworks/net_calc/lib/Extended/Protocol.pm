@@ -16,8 +16,9 @@ use Extended::Constants;
 sub try_send {
     my $dest = shift;
     my $msg = shift;
-    
+
     my $len_sended = $dest->send($msg);
+    shutdown($dest, 1);
     if ( $len_sended != length($msg) ) { die "Cant send message" }
 }
 
@@ -31,7 +32,7 @@ sub send_message {
 	my $string_msg = msg_to_str($aref);
     my $p_header = pack_header($type, length($string_msg));
     my $p_msg = pack_message($string_msg);
-    try_send($client, $p_header.$p_msg.$/);
+    try_send($client, $p_header.$p_msg);
 }
 
 # Receive header from Client
