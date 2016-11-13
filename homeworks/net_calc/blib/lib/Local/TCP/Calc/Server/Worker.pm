@@ -3,39 +3,72 @@ package Local::TCP::Calc::Server::Worker;
 use strict;
 use warnings;
 use Mouse;
+use POSIX;
+use Fcntl qw(:DEFAULT :flock);
 
-has cur_task_id => (is => 'ro', isa => 'Int', required => 1);
-has forks       => (is => 'rw', isa => 'HashRef', default => sub {return {}});
-has calc_ref    => (is => 'ro', isa => 'CodeRef', required => 1);
+use Extended::Subs;
+require "Calculator/bin/Calculator.pm";
+
+has task_id     => (is => 'ro', isa => 'Int', required => 1);
 has max_forks   => (is => 'ro', isa => 'Int', required => 1);
+has in_file     => (is => 'rw', isa => 'Str');
+has out_file    => (is => 'rw', isa => 'Str');
+has forks       => (is => 'rw', isa => 'ArrayRef', default => sub{ [] });
+has error       => (is => 'rw', isa => 'Int', default => 0);
 
-sub write_err {
-	my $self = shift;
-	my $error = shift;
-	...
-	# Записываем ошибку возникшую при выполнении задания
-}
+sub wait_fork {
+    my $self = shift;
 
-sub write_res {
-	my $self = shift;
-	my $res = shift;
-	...
-	# Записываем результат выполнения задания
-}
-
-sub child_fork {
-	my $self = shift;
-	...
-	# Обработка сигнала CHLD, не забываем проверить статус завершения процесс и при надобности убить оставшихся
+    my $wpid = waitpid(0, 0);
+    if ( $wpid == -1 ) { return -1 } # No childs to wait
+    @{$self->{forks}} = grep { $_ ne $wpid } @{$self->{forks}};    
+    if ( !WIFEXITED($?) ) {
+        print "Suddenly worker died =/$/";
+        for my $child ( @{$self->{forks}} ) {
+            kill("TERM", $child);     
+        }
+        $self->{error} = 1;
+    }
+    return $wpid;
 }
 
 sub start {
-	my $self = shift;
-	my $task = shift;
-	...
-	# Начинаем выполнение задания. Форкаемся на нужное кол-во форков для обработки массива примеров
-	# Вызов блокирующий, ждём  пока не завершатся все форки
-	# В форках записываем результат в файл, не забываем про локи, чтобы форки друг другу не портили результат
+    $SIG{CHLD} = "DEFAULT";
+    my $self = shift;
+    
+    $self->{in_file} = "/tmp/task".$self->{task_id}.".in";    
+    $self->{out_file} = "/tmp/task".$self->{task_id}.".out";    
+    open my $fh_in, '<', $self->{in_file} or die $!;
+    open my $fh_out, '>', $self->{out_file} or die $!;
+    my @forks_list = ();
+    $self->{forks} = \@forks_list;
+
+    EXPR: while ( my $expr = <$fh_in> ) {
+        chomp($expr);
+        while ( $#forks_list + 1 == $self->{max_forks} ) { 
+            $self->wait_fork();    
+            if ( $self->{error} ) { 
+                try_write($fh_out, "Something bad happens while processing the task$/", "rewrite"); 
+                last EXPR;
+            }
+        }
+        my $pid = fork();
+    #parent
+        if ( $pid ) {
+            push @forks_list, $pid;
+            next;
+        } 
+    #child
+        if ( defined $pid ) {
+            my $res = calculate($expr);  
+            try_write($fh_out, $res.$/);
+            exit 0;
+        } else { die "Can't fork: $!" }
+    }
+    
+    while ( $self->wait_fork() != -1 ) { }
+    close $fh_in;
+    close $fh_out;
 }
 
 no Mouse;

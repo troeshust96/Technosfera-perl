@@ -99,7 +99,7 @@ sub solve_request {
             erase_task($id, $queue);
         }
         if ( $status == STATUS_NEW() || $status == STATUS_WORK() ) {
-            @response = (@response, queue->get_time_unchanged($id));
+            @response = (@response, $queue->get_time_unchanged($id));
         } 
         return @response;
     } 

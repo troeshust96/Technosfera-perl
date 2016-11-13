@@ -161,7 +161,8 @@ C_FILES  =
 O_FILES  = 
 H_FILES  = 
 MAN1PODS = 
-MAN3PODS = 
+MAN3PODS = lib/Calculator/lib/rpn.pl \
+	lib/Local/Calculator/lib/rpn.pl
 
 # Where is the Config information that we are using/depend on
 CONFIGDEP = $(PERL_ARCHLIBDEP)$(DFSEP)Config.pm $(PERL_INCDEP)$(DFSEP)config.h
@@ -184,13 +185,55 @@ PERL_ARCHIVEDEP    =
 PERL_ARCHIVE_AFTER = 
 
 
-TO_INST_PM = lib/Local/TCP/Calc.pm \
+TO_INST_PM = lib/Calculator/bin/Calculator.pm \
+	lib/Calculator/lib/evaluate.pl \
+	lib/Calculator/lib/rpn.pl \
+	lib/Calculator/lib/tokenize.pl \
+	lib/Extended/Constants.pm \
+	lib/Extended/Protocol.pm \
+	lib/Extended/Subs.pm \
+	lib/Local/Calculator/bin/Calculator.pm \
+	lib/Local/Calculator/lib/evaluate.pl \
+	lib/Local/Calculator/lib/rpn.pl \
+	lib/Local/Calculator/lib/tokenize.pl \
+	lib/Local/Extended/Constants.pm \
+	lib/Local/Extended/Protocol.pm \
+	lib/Local/Extended/Subs.pm \
+	lib/Local/TCP/Calc.pm \
 	lib/Local/TCP/Calc/Client.pm \
 	lib/Local/TCP/Calc/Server.pm \
 	lib/Local/TCP/Calc/Server/Queue.pm \
 	lib/Local/TCP/Calc/Server/Worker.pm
 
-PM_TO_BLIB = lib/Local/TCP/Calc.pm \
+PM_TO_BLIB = lib/Calculator/bin/Calculator.pm \
+	blib/lib/Calculator/bin/Calculator.pm \
+	lib/Calculator/lib/evaluate.pl \
+	blib/lib/Calculator/lib/evaluate.pl \
+	lib/Calculator/lib/rpn.pl \
+	blib/lib/Calculator/lib/rpn.pl \
+	lib/Calculator/lib/tokenize.pl \
+	blib/lib/Calculator/lib/tokenize.pl \
+	lib/Extended/Constants.pm \
+	blib/lib/Extended/Constants.pm \
+	lib/Extended/Protocol.pm \
+	blib/lib/Extended/Protocol.pm \
+	lib/Extended/Subs.pm \
+	blib/lib/Extended/Subs.pm \
+	lib/Local/Calculator/bin/Calculator.pm \
+	blib/lib/Local/Calculator/bin/Calculator.pm \
+	lib/Local/Calculator/lib/evaluate.pl \
+	blib/lib/Local/Calculator/lib/evaluate.pl \
+	lib/Local/Calculator/lib/rpn.pl \
+	blib/lib/Local/Calculator/lib/rpn.pl \
+	lib/Local/Calculator/lib/tokenize.pl \
+	blib/lib/Local/Calculator/lib/tokenize.pl \
+	lib/Local/Extended/Constants.pm \
+	blib/lib/Local/Extended/Constants.pm \
+	lib/Local/Extended/Protocol.pm \
+	blib/lib/Local/Extended/Protocol.pm \
+	lib/Local/Extended/Subs.pm \
+	blib/lib/Local/Extended/Subs.pm \
+	lib/Local/TCP/Calc.pm \
 	blib/lib/Local/TCP/Calc.pm \
 	lib/Local/TCP/Calc/Client.pm \
 	blib/lib/Local/TCP/Calc/Client.pm \
@@ -423,8 +466,12 @@ POD2MAN_EXE = $(PERLRUN) "-MExtUtils::Command::MM" -e pod2man "--"
 POD2MAN = $(POD2MAN_EXE)
 
 
-manifypods : pure_all 
-	$(NOECHO) $(NOOP)
+manifypods : pure_all  \
+	lib/Calculator/lib/rpn.pl \
+	lib/Local/Calculator/lib/rpn.pl
+	$(NOECHO) $(POD2MAN) --section=$(MAN3EXT) --perm_rw=$(PERM_RW) -u \
+	  lib/Calculator/lib/rpn.pl $(INST_MAN3DIR)/Calculator::lib::rpn.$(MAN3EXT) \
+	  lib/Local/Calculator/lib/rpn.pl $(INST_MAN3DIR)/Local::Calculator::lib::rpn.$(MAN3EXT) 
 
 
 
@@ -841,6 +888,20 @@ ppd :
 
 pm_to_blib : $(FIRST_MAKEFILE) $(TO_INST_PM)
 	$(NOECHO) $(ABSPERLRUN) -MExtUtils::Install -e 'pm_to_blib({@ARGV}, '\''$(INST_LIB)/auto'\'', q[$(PM_FILTER)], '\''$(PERM_DIR)'\'')' -- \
+	  lib/Calculator/bin/Calculator.pm blib/lib/Calculator/bin/Calculator.pm \
+	  lib/Calculator/lib/evaluate.pl blib/lib/Calculator/lib/evaluate.pl \
+	  lib/Calculator/lib/rpn.pl blib/lib/Calculator/lib/rpn.pl \
+	  lib/Calculator/lib/tokenize.pl blib/lib/Calculator/lib/tokenize.pl \
+	  lib/Extended/Constants.pm blib/lib/Extended/Constants.pm \
+	  lib/Extended/Protocol.pm blib/lib/Extended/Protocol.pm \
+	  lib/Extended/Subs.pm blib/lib/Extended/Subs.pm \
+	  lib/Local/Calculator/bin/Calculator.pm blib/lib/Local/Calculator/bin/Calculator.pm \
+	  lib/Local/Calculator/lib/evaluate.pl blib/lib/Local/Calculator/lib/evaluate.pl \
+	  lib/Local/Calculator/lib/rpn.pl blib/lib/Local/Calculator/lib/rpn.pl \
+	  lib/Local/Calculator/lib/tokenize.pl blib/lib/Local/Calculator/lib/tokenize.pl \
+	  lib/Local/Extended/Constants.pm blib/lib/Local/Extended/Constants.pm \
+	  lib/Local/Extended/Protocol.pm blib/lib/Local/Extended/Protocol.pm \
+	  lib/Local/Extended/Subs.pm blib/lib/Local/Extended/Subs.pm \
 	  lib/Local/TCP/Calc.pm blib/lib/Local/TCP/Calc.pm \
 	  lib/Local/TCP/Calc/Client.pm blib/lib/Local/TCP/Calc/Client.pm \
 	  lib/Local/TCP/Calc/Server.pm blib/lib/Local/TCP/Calc/Server.pm \

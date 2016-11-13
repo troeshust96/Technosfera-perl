@@ -12,29 +12,7 @@ sub STATUS_WORK  {2}
 sub STATUS_DONE  {3}
 sub STATUS_ERROR {4}
 
-sub pack_header {
-	my $pkg = shift;
-	my $type = shift;
-	my $size = shift;
-	...
-}
-
-sub unpack_header {
-	my $pkg = shift;
-	my $header = shift;
-	...
-}
-
-sub pack_message {
-	my $pkg = shift;
-	my $messages = shift;
-	...
-}
-
-sub unpack_message {
-	my $pkg = shift;
-	my $message = shift;
-	...
-}
+sub HEADER_SIZE {5}
+sub BUF_SIZE    {1024}
 
 1;

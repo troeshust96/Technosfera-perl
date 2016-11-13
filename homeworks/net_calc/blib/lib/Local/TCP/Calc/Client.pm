@@ -1,33 +1,46 @@
 package Local::TCP::Calc::Client;
 
 use strict;
+use warnings;
 use IO::Socket;
-use Local::TCP::Calc;
+use Fcntl ':flock';
+use IO::Socket::IP;
+
+use Extended::Constants;
+use Extended::Protocol;
 
 sub set_connect {
-	my $pkg = shift;
-	my $ip = shift;
-	my $port = shift;
-	...
-	# read header before read message
-	# check on Local::TCP::Calc::TYPE_CONN_ERR();
-	...
-	return $server;
+    my $pkg = shift;
+    my $ip = shift;
+    my $port = shift;
+    
+    my $server = IO::Socket::IP->new(
+        PeerPort => $port,
+        PeerAddr => $ip,
+        Proto    => 'tcp',
+        V6Only   => 1,
+    ) or die "Cannot open client socket: $!";
+   
+    $server->recv(my $code, 1);
+    if ( $code == TYPE_CONN_ERR() ) { die "Server denied the connection" }
+    return $server;
 }
 
-sub do_request {
-	my $pkg = shift;
-	my $server = shift;
-	my $type = shift;
-	my $message = shift;
+sub do_request { 
+    my $pkg = shift;
+    my $server = shift;
+    my $type = shift;
+    my $message = shift;
+   
+# Send request to server 
+    send_message($server, $message, $type);
 
-	...
-	# Проверить, что записанное/прочитанное количество байт равно длинне сообщения/заголовка
-	# Принимаем и возвращаем перловые структуры
-	...
-
-	return $struct;
+# Receive response
+    my %info = receive_header($server);
+    my $rec_message = receive_message($server, $info{size});
+    $rec_message =~ s/#//;
+    my @ans = split(/#/, $rec_message);
+    return @ans;
 }
 
 1;
-

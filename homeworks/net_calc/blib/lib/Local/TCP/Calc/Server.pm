@@ -1,101 +1,189 @@
 package Local::TCP::Calc::Server;
 
-use strict;
-use Local::TCP::Calc;
 use Local::TCP::Calc::Server::Queue;
 use Local::TCP::Calc::Server::Worker;
-use IO::Socket;
+use Extended::Subs;
+use Extended::Protocol;
+use Extended::Constants;
 
-my $max_worker;
-my $in_process = 0;
+use strict;
+use warnings;
+use IO::Socket qw(getnameinfo SOCK_STREAM);
+use Fcntl qw(:DEFAULT :flock);
+use POSIX ":sys_wait_h";
 
-my $pids_master = {};
+my $max_worker = 0;
 my $receiver_count = 0;
 my $max_forks_per_task = 0;
 my $max_queue_task = 0;
-my $queue_filename = "/tmp/queue.log";
+my $max_receiver = 0;
+
+my @rec_pids = ();
+my @worker_pids = ();
 
 sub REAPER {
-	...
-	# Функция для обработки сигнала CHLD
-};
+    local $!;
+    while ((my $pid = waitpid(-1, WNOHANG)) > 0 && WIFEXITED($?)) {
+        @rec_pids = grep { $_ ne $pid } @rec_pids;
+        @worker_pids = grep { $_ ne $pid } @worker_pids;
+    }
+    $SIG{CHLD} = \&REAPER;  # loathe SysV
+}
 $SIG{CHLD} = \&REAPER;
 
-sub start_server {
-	my ($pkg, $port, %opts) = @_;
-	$max_worker         = $opts{max_worker} // die "max_worker required"; 
-	$max_forks_per_task = $opts{max_forks_per_task} // die "max_forks_per_task required";
-    my $max_receiver    = $opts{max_receiver} // die "max_receiver required"; 
-    $max_queue_task     = $opts{max_queue_task} // die "max_queue_task required";
-    	
-	# Инициализируем сервер my $server = IO::Socket::INET->new(...);
+# Receive request from Client
+sub get_request {
+    my $client = shift;
+    
+    my %info = receive_header($client);
+    if ( scalar(keys(%info)) == 0 ) { return }
+    my $message = receive_message($client, $info{size});
+    my %request = (
+        type => $info{type},
+        size => $info{size},
+        msg  => $message,
+    );
+    return %request;
+}
 
-    my $server = IO::Socket::INET->new(
-        LocalPort => $port,
-        Type => SOCK_STREAM,
-        ReuseAddr => 1,
-        Listen => 10)
-    or die "Can't create server on port $port : $@ $/";
+# Reading result from files to array
+sub get_results {
+    my $task_id = shift;
     
-
-	# Инициализируем очередь my $q = Local::TCP::Calc::Server::Queue->new(...);
-    
-    
-    my $queue_fh = FileHandle->new($queue_filename, O_RDWR|O_CREAT);
-    if ( !defined $fh ) {
-        die "Cant open file for queue";
+    my @ans = ();
+    open my $fh_in, '<', get_input_filename($task_id); 
+    open my $fh_out, '<', get_output_filename($task_id);
+    while ( my $res = <$fh_out> ) {
+        my $expr = <$fh_in>;
+        chomp( $res );
+        chomp( $expr );
+        push @ans, $expr." == ".$res;
     }
-    my $queue = Local::TCP::Calc::Server::Queue->new(
-        f_handle       => $queue_fh,
-        queue_filename => $queue_filename,
-        max_task       => $max_queue_task)
-	$queue->init();
+    close $fh_in;
+    close $fh_out;
+    return @ans;
+}
+
+# Delete task from queue and clean files
+sub erase_task {
+    my $id = shift;
+    my $queue = shift;
+    unlink (get_input_filename($id), get_output_filename($id));
+    $queue->delete($id);
+}
+
+# Handling request
+sub solve_request {
+    my $request = shift;
+    my $queue = shift;
     
-	while(my $client = $server->accept()){
-		my $child = fork();
-		if ( $child ) { 
+# New task
+    if ( $request->{type} == TYPE_START_WORK() ) {
+        my $id = $queue->add();
+        if ( $id ) {        
+            write_task_input($request->{msg}, $id);
+            punch_workers($queue);
+        }
+        return $id;
+    }
+# Check status
+    if ( $request->{type} == TYPE_CHECK_WORK() ) {
+        my $id = $request->{msg};
+        $id =~ s/^#//;
+        
+        my @response = ();
+        my $status = $queue->get_status($id);
+        push @response, $status; 
+        if ( $status == STATUS_DONE() || $status == STATUS_ERROR() ) {
+            @response = (@response, get_results($id));
+            erase_task($id, $queue);
+        }
+        if ( $status == STATUS_NEW() || $status == STATUS_WORK() ) {
+            @response = (@response, queue->get_time_unchanged($id));
+        } 
+        return @response;
+    } 
+}
+
+sub start_server {
+    
+# Starting server
+    my ($pkg, $port, %opts) = @_;
+    $max_worker         = $opts{max_worker} // die "max_worker required"; 
+    $max_forks_per_task = $opts{max_forks_per_task} // die "max_forks_per_task required";
+    $max_queue_task     = $opts{max_queue_task} // die "max_queue_task required"; 
+    $max_receiver    = $opts{max_receiver} // die "max_receiver required"; 
+
+    my $host = "127.0.0.1";    
+    my $server = IO::Socket::IP->new(
+        LocalPort => $port,
+        LocalAddr => $host,
+        Proto     => 'tcp',
+        Listen    => 5,
+        Type      => SOCK_STREAM,
+        V6Only    => 1,
+        (($^O eq 'MSWin32') ? () : (ReuseAddr => 1)),
+    ) or die "Cannot open server socket: $!";
+    
+# Starting queue
+    my $queue = Local::TCP::Calc::Server::Queue->new(max_task => $max_queue_task);
+    $queue->init();
+    
+# Accepting connections
+    while (1) {        
+        my $client = $server->accept;
+        if ( !defined $client) { next }
+        if ( $#rec_pids + 1 == $max_receiver ) {
+            print "Reached limit of receivers".$/; 
+            $client->send(TYPE_CONN_ERR());
+            close ( $client );
+            next;
+        }
+        my $child = fork();
+    #parent
+        if ( $child ) { 
+            push(@rec_pids, $child);
             close ($client); 
             next; 
         }
-		if ( defined $child ) {
-            close($server);
-			my $other = getpeername($client);
-			my ($err, $host, $service)=getnameinfo($other);
-			print "Client $host:$service $/";
-			$client->autoflush(1);
-			my $message = <$client>;
-			chomp( $message );
-			print $client "Echo: ".$message;
-			close( $client );
-			exit;
-		} else { 
-            die "Can't fork: $!"; 
-        }
-	}
+    #child
+        if ( defined $child ) {
+            close $server;
+            $client->send(TYPE_CONN_OK());
+            my %request = get_request($client);
+            if ( scalar(keys(%request)) == 0 ) { exit } # empty request
+            my @ans = solve_request(\%request, $queue); 
+            send_message($client, \@ans);
+            close $client;
+            exit;
+        } else { die "Can't fork: $!" }
+    }
+} 
 
-
-	
-	# Начинаем accept-тить подключения
-	# Проверяем, что количество принимающих форков не вышло за пределы допустимого ($max_receiver)
-	# Если все нормально отвечаем клиенту TYPE_CONN_OK() в противном случае TYPE_CONN_ERR()
-	# В каждом форке читаем сообщение от клиента, анализируем его тип (TYPE_START_WORK(), TYPE_CHECK_WORK()) 
-	# Не забываем проверять количество прочитанных/записанных байт из/в сеть
-	# Если необходимо добавляем задание в очередь (проверяем получилось или нет) 
-	# Если пришли с проверкой статуса, получаем статус из очереди и отдаём клиенту
-	# В случае если статус DONE или ERROR возвращаем на клиент содержимое файла с результатом выполнения
-	# После того, как результат передан на клиент зачищаем файл с результатом
-}
-
-sub check_queue_workers {
-	my $self = shift;
-	my $q = shift;
-	...
-	# Функция в которой стартует обработчик задания
-	# Должна следить за тем, что бы кол-во обработчиков не превышало мексимально разрешённого ($max_worker)
-	# Но и простаивать обработчики не должны
-	# my $worker = Local::TCP::Calc::Server::Worker->new(...);
-	# $worker->start(...);
-	# $q->to_done ...
+# If any worker done his task or task added
+sub punch_workers {
+    my $queue = shift;
+    
+    if ( $#worker_pids + 1 == $max_worker ) { return } # No free workers :(
+    
+    my $task_id = $queue->get();
+    if ( !$task_id ) { return } # No tasks to do :)
+    my $pid = fork();
+#parent
+    if ( $pid ) {
+        push @worker_pids, $pid;
+        return;
+    }
+#child (i.e. worker)
+    if ( defined $pid ) {
+        my $worker = Local::TCP::Calc::Server::Worker->new(
+            task_id => $task_id,
+            max_forks   => $max_forks_per_task,
+        ); 
+        $worker->start();
+        $queue->to_done($task_id);
+        exit 0; 
+    }  else { die "Cant start worker: $!" }
 }
 
 1;
